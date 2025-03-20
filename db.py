@@ -37,7 +37,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS platforms (
             platform_name TEXT PRIMARY KEY,
             stock TEXT,
-            price INTEGER DEFAULT {config.DEFAULT_ACCOUNT_CLAIM_COST}
+            price INTEGER DEFAULT {config.DEFAULT_ACCOUNT_CLAIM_COST},
+            platform_type TEXT DEFAULT 'account'
         )
     ''')
     c.execute('''
@@ -282,7 +283,7 @@ def get_keys():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM keys ")
+    c.execute("SELECT * FROM keys")
     keys = c.fetchall()
     c.close()
     conn.close()
@@ -328,7 +329,27 @@ def update_stock_for_platform(platform_name, stock):
     conn.commit()
     c.close()
     conn.close()
-    log_event(telebot.TeleBot(config.TOKEN), "stock", f"Platform '{platform_name}' stock updated to {len(stock)} accounts.")
+    log_event(telebot.TeleBot(config.TOKEN), "stock", f"Platform '{platform_name}' stock updated to {len(stock)} items.")
+
+# ----- New Helper Functions for Platform Management -----
+
+def rename_platform(old_name, new_name):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE platforms SET platform_name = ? WHERE platform_name = ?", (new_name, old_name))
+    conn.commit()
+    c.close()
+    conn.close()
+    log_event(telebot.TeleBot(config.TOKEN), "platform", f"Platform renamed from '{old_name}' to '{new_name}'.")
+
+def update_platform_price(platform_name, new_price):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE platforms SET price = ? WHERE platform_name = ?", (new_price, platform_name))
+    conn.commit()
+    c.close()
+    conn.close()
+    log_event(telebot.TeleBot(config.TOKEN), "platform", f"Platform '{platform_name}' price updated to {new_price} pts.")
 
 if __name__ == '__main__':
     init_db()
