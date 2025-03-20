@@ -137,9 +137,10 @@ def gen_command(message):
             add_key(key, "premium", 90)
             generated.append(key)
     else:
-        bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
-        return
-    if generated:
+    bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
+    return
+
+if generated:
     text = (
         "╔═══━━━─── • ───━━━═══╗\n"
         "     🎁 𝗦𝗛𝗔𝗗𝗢𝗪 𝗩𝟭 🎁\n"
@@ -154,6 +155,7 @@ def gen_command(message):
     text += "╰─━━━━━━━━━━━━─╯"
 else:
     text = "No keys generated."
+
 bot.reply_to(message, text, parse_mode="HTML")
 
 
