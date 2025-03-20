@@ -2,26 +2,21 @@ from db import get_user, add_user
 from datetime import datetime
 
 def send_account_info(bot, update):
-    if hasattr(update, "message"):
+    if hasattr(update, "message") and update.message:
+        # It's a normal message
         chat_id = update.message.chat.id
-        user_obj = update.from_user
+        user_id = update.message.from_user.id
     elif hasattr(update, "data"):
+        # It's a callback
         chat_id = update.message.chat.id
-        user_obj = update.from_user
+        user_id = update.from_user.id
     else:
+        # Fallback
         chat_id = update.chat.id
-        user_obj = update.from_user
+        user_id = update.from_user.id
 
-    telegram_id = str(user_obj.id)
-    user = get_user(telegram_id)
-    if not user:
-        add_user(
-            telegram_id,
-            user_obj.username or user_obj.first_name,
-            datetime.now().strftime("%Y-%m-%d")
-        )
-        user = get_user(telegram_id)
-    
+    user = get_user(str(user_id))
+    # Now show that user's info
     text = (
         "╭━━━✦❘༻👤 ACCOUNT INFO ༺❘✦━━━╮\n"
         f"┃ ✧ Username: {user.get('username')}\n"
