@@ -34,7 +34,17 @@ def process_verified_referral(telegram_id, bot_instance):
         log_event(bot_instance, "referral", f"User {referrer_id} referred user {user.get('telegram_id')}.")
 
 
-def send_referral_menu(bot, message):    telegram_id = str(message.from_user.id)    text = """🔗 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗦𝘆𝘀𝘁𝗲𝗺 🔗══════ ⌁ ══════💡 Your referral link is below!🎁 Earn 🎯 10 Points per referral!══════ ⌁ ══════"""    markup = telebot.types.InlineKeyboardMarkup()
+def send_referral_menu(bot, message):
+    telegram_id = str(message.from_user.id)
+    text = """🔗 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗦𝘆𝘀𝘁𝗲𝗺 🔗
+══════ ⌁ ══════
+💡 Your referral link is below!
+🎁 Earn 🎯 10 Points per referral!
+══════ ⌁ ══════
+"""
+    markup = telebot.types.InlineKeyboardMarkup()
+    
+
  markup.add(telebot.types.InlineKeyboardButton("🌟 Get Referral Link", callback_data="get_ref_link"))
     markup.add(telebot.types.InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode="HTML")
