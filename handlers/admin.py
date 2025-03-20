@@ -276,6 +276,7 @@ def handle_admin_stock_detail(bot, call, platform_name):
     if not platform:
         bot.send_message(call.message.chat.id, "Platform not found.")
         return
+    platform = dict(platform)  # Convert row to dictionary
     stock = json.loads(platform["stock"] or "[]")
     price = platform["price"]
     p_type = platform.get("platform_type", "account")
@@ -292,6 +293,7 @@ def handle_admin_stock_detail(bot, call, platform_name):
                           chat_id=call.message.chat.id,
                           message_id=call.message.message_id, 
                           reply_markup=markup)
+
 
 def handle_admin_stock_add(bot, call, platform_name):
     conn = __import__('db').get_connection()
