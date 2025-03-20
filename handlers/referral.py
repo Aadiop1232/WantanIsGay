@@ -22,7 +22,7 @@ def process_verified_referral(telegram_id, bot_instance):
         try:
             bot_instance.send_message(
                 int(referrer_id),
-                "🎉 Referral completed! 🎉\n"
+                "🎉 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗰𝗼𝗺𝗽𝗹𝗲𝘁𝗲𝗱! 🎉\n"
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 "You earned 10 points!\n"
                 "━━━━━━━━━━━━━━━━━━━━━",
