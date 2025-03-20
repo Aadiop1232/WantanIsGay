@@ -140,13 +140,22 @@ def gen_command(message):
         bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
         return
     if generated:
-        text = "Redeem Generated ✅\n"
-        for key in generated:
-            text += f"➔ <code>{key}</code>\n"
-        text += "\nYou can redeem this code using this command: /redeem <Key>"
-    else:
-        text = "No keys generated."
-    bot.reply_to(message, text, parse_mode="HTML")
+    text = (
+        "╔═══━━━─── • ───━━━═══╗\n"
+        "     🎁 𝗦𝗛𝗔𝗗𝗢𝗪 𝗩𝟭 🎁\n"
+        "     ✨ Redeem Keys ✨\n"
+        "╚═══━━━─── • ───━━━═══╝\n\n"
+    )
+    # List each generated key in mono formatting
+    for key in generated:
+        text += f"⟡ <code>{key}</code>\n"
+    text += "\n╭─━━━━━━━━━━━━─╮\n"
+    text += "🤖 Redeem your code:   ➥ /redeem KEY\n"
+    text += "╰─━━━━━━━━━━━━─╯"
+else:
+    text = "No keys generated."
+bot.reply_to(message, text, parse_mode="HTML")
+
 
 # ---------------- New Recovery Commands ----------------
 
