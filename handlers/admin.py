@@ -317,8 +317,33 @@ def handle_admin_stock_add(bot, call, platform_name):
 
 
 def process_stock_upload_admin(bot, message, platform_name, platform_type, retries=3):
+    """
+    Updated version that merges new stock with old stock (instead of overwriting)
+    and splits each line for cookie .txt files, so you don't store an entire file
+    as a single item.
+    """
+    import io
+    import json
+    from zipfile import ZipFile, BadZipFile
+    from db import update_stock_for_platform, get_connection
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT stock FROM platforms WHERE platform_name = ?", (platform_name,))
+    row = c.fetchone()
+    c.close()
+    conn.close()
+
+    # Load existing stock from DB
+    current_stock = json.loads(row["stock"]) if row and row["stock"] else []
+
+    # We'll collect newly parsed items in new_stock
+    new_stock = []
+
+    # 1) ACCOUNT platform => parse lines from either text or doc, then merge
     if platform_type == "account":
         if message.content_type == "document":
+            # Download file
             for attempt in range(retries):
                 try:
                     file_info = bot.get_file(message.document.file_id)
@@ -337,58 +362,76 @@ def process_stock_upload_admin(bot, message, platform_name, platform_type, retri
                         bot.send_message(message.chat.id, f"Error downloading file: {e}")
                         return
         else:
+            # If no document, assume text
             data = message.text.strip()
-        accounts = [line.strip() for line in data.splitlines() if line.strip()]
-        from db import update_stock_for_platform
-        update_stock_for_platform(platform_name, accounts)
-        bot.send_message(message.chat.id, f"Stock for '{platform_name}' updated with {len(accounts)} accounts.")
+
+        # Each line is one account
+        lines = [line.strip() for line in data.splitlines() if line.strip()]
+        # Merge with existing
+        current_stock.extend(lines)
+        update_stock_for_platform(platform_name, current_stock)
+
+        bot.send_message(message.chat.id,
+                         f"Stock for '{platform_name}' updated. "
+                         f"{len(lines)} new items added. Total: {len(current_stock)}")
         send_admin_menu(bot, message)
+        return
+
+    # 2) COOKIE platform => parse each line from .txt files
     elif platform_type == "cookie":
         if message.content_type != "document":
             bot.send_message(message.chat.id, "Please send a TXT or ZIP file.")
             return
+
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
-        import io
-        from zipfile import ZipFile, BadZipFile
         filename = message.document.file_name.lower()
-        new_stock = []
+
         if filename.endswith(".txt"):
+            # Single .txt file => each line is a cookie
             try:
                 content = downloaded_file.decode('utf-8')
-            except Exception:
+            except UnicodeDecodeError:
                 content = downloaded_file.decode('latin-1', errors='replace')
-            new_stock.append({"type": "cookie", "content": content})
+            lines = [line.strip() for line in content.splitlines() if line.strip()]
+            for line in lines:
+                # Store each line as one cookie item
+                new_stock.append({"type": "cookie", "content": line})
+
         elif filename.endswith(".zip"):
             try:
                 zip_file = ZipFile(io.BytesIO(downloaded_file))
-                for file in zip_file.namelist():
-                    if file.lower().endswith(".txt"):
-                        with zip_file.open(file) as f:
+                # For each .txt inside the zip, parse lines
+                for f_name in zip_file.namelist():
+                    if f_name.lower().endswith(".txt"):
+                        with zip_file.open(f_name) as f:
                             try:
                                 content = f.read().decode('utf-8')
-                            except Exception:
+                            except UnicodeDecodeError:
                                 content = f.read().decode('latin-1', errors='replace')
-                            new_stock.append({"type": "cookie", "content": content})
+                            lines = [line.strip() for line in content.splitlines() if line.strip()]
+                            for line in lines:
+                                new_stock.append({"type": "cookie", "content": line})
             except BadZipFile as e:
                 bot.send_message(message.chat.id, f"Invalid ZIP file: {e}")
                 return
         else:
             bot.send_message(message.chat.id, "Unsupported file type. Please send a TXT or ZIP file.")
             return
-        import json
-        conn = __import__('db').get_connection()
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT stock FROM platforms WHERE platform_name = ?", (platform_name,))
-        row = c.fetchone()
-        current_stock = json.loads(row["stock"]) if row and row["stock"] else []
+
+        # Merge new_stock with existing stock
         current_stock.extend(new_stock)
-        c.execute("UPDATE platforms SET stock = ? WHERE platform_name = ?", (json.dumps(current_stock), platform_name))
-        conn.commit()
-        c.close()
-        conn.close()
-        bot.send_message(message.chat.id, f"Cookie stock updated. {len(new_stock)} items added.")
+        update_stock_for_platform(platform_name, current_stock)
+
+        bot.send_message(message.chat.id,
+                         f"Cookie stock updated. {len(new_stock)} new items added. Total: {len(current_stock)}")
+        send_admin_menu(bot, message)
+        return
+
+    else:
+        bot.send_message(message.chat.id, f"Unknown platform type: {platform_type}")
+        return
+
         send_admin_menu(bot, message)
 
 # ----------------- CHANNEL MANAGEMENT -----------------
