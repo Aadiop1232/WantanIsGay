@@ -32,7 +32,8 @@ def process_verified_referral(telegram_id, bot_instance):
 
 def send_referral_menu(bot, message):
     telegram_id = str(message.from_user.id)
-    text = """🔗 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗦𝘆𝘀𝘁𝗲𝗺 🔗══════ ⌁ ══════
+    text = """🔗 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗦𝘆𝘀𝘁𝗲𝗺 🔗
+══════ ⌁ ══════
 💡 Your referral link is below!
 🎁 Earn 🎯 10 Points per referral!
 ══════ ⌁ ══════
