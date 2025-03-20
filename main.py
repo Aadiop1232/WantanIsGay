@@ -1,7 +1,8 @@
 import telebot
 import config
+import os
 from datetime import datetime
-from db import init_db, add_user, get_user, claim_key_in_db
+from db import init_db, add_user, get_user, claim_key_in_db, DATABASE
 from handlers.verification import send_verification_message, handle_verification_callback
 from handlers.main_menu import send_main_menu
 from handlers.referral import extract_referral_code, process_verified_referral, send_referral_menu, get_referral_link
@@ -82,7 +83,7 @@ def redeem_command(message):
     key = parts[1].strip()
     result = claim_key_in_db(key, user_id)
     bot.reply_to(message, result)
-    log_event(bot, "key_claim", f"User  {user_id} redeemed key {key}. Result: {result}", user=message.from_user)
+    log_event(bot, "key_claim", f"User {user_id} redeemed key {key}. Result: {result}", user=message.from_user)
 
 @bot.message_handler(commands=["report"])
 def report_command(message):
@@ -147,6 +148,41 @@ def gen_command(message):
         text = "No keys generated."
     bot.reply_to(message, text, parse_mode="HTML")
 
+# ---------------- New Recovery Commands ----------------
+
+@bot.message_handler(commands=["recover"])
+def recover_command(message):
+    # Only allow owners to recover the database
+    if str(message.from_user.id) not in config.OWNERS:
+        bot.reply_to(message, "🚫 You are not authorized.")
+        return
+    # This command must be sent in reply to a document (the bot DB file)
+    if not message.reply_to_message or not message.reply_to_message.document:
+        bot.reply_to(message, "Please reply to a valid bot database file to recover it.")
+        return
+    try:
+        file_info = bot.get_file(message.reply_to_message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        with open(DATABASE, "wb") as f:
+            f.write(downloaded_file)
+        bot.reply_to(message, "✅ Database recovered successfully.")
+    except Exception as e:
+        bot.reply_to(message, f"Error recovering database: {e}")
+
+@bot.message_handler(commands=["get"])
+def get_command(message):
+    # Only allow owners to get the current database file
+    if str(message.from_user.id) not in config.OWNERS:
+        bot.reply_to(message, "🚫 You are not authorized.")
+        return
+    try:
+        with open(DATABASE, "rb") as f:
+            bot.send_document(message.chat.id, f)
+    except Exception as e:
+        bot.reply_to(message, f"Error sending database file: {e}")
+
+# ---------------- Callback Query Handlers ----------------
+
 @bot.callback_query_handler(func=lambda call: call.data == "back_main")
 def callback_back_main(call):
     try:
@@ -208,6 +244,8 @@ def callback_claim(call):
     platform_name = call.data.split("claim_")[1]
     from handlers.rewards import claim_account
     claim_account(bot, call, platform_name)
+
+# ---------------- Polling Loop ----------------
 
 while True:
     try:
