@@ -77,11 +77,11 @@ def send_premium_account_info(bot, chat_id, platform_name, account_info):
         file_stream.name = f"{platform_name}_cookie.txt"
         bot.send_document(chat_id, file_stream, caption="Your cookie file has been sent.")
     else:
-        text = f"""🎉✨ PREMIUM ACCOUNT UNLOCKED 
+        text = f"""🎉✨ 𝙋𝙍𝙀𝙈𝙄𝙐𝙈 𝘼𝘾𝘾𝙊𝙐𝙉𝙏 𝙐𝙉𝙇𝙊𝘾𝙆𝙀𝘿  
 
-✨🎉📦 Service: {platform_name}
+✨🎉📦 𝙎𝙚𝙧𝙫𝙞𝙘𝙚 : {platform_name}
 
-🔑 Your Account: 
+🔑 𝙔𝙤𝙪𝙧 𝘼𝙘𝙘𝙤𝙪𝙣𝙩 :
 <code>{account_info}</code> 📌 
 
 How to login:
