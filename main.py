@@ -110,37 +110,55 @@ def tutorial_command(message):
 
 
 @bot.message_handler(commands=["gen"])
+
+@bot.message_handler(commands=["gen"])
 def gen_command(message):
     if check_if_banned(message):
         return
     if str(message.from_user.id) not in config.ADMINS and str(message.from_user.id) not in config.OWNERS:
         bot.reply_to(message, "🚫 You don't have permission to generate keys.")
         return
+
     parts = message.text.strip().split()
+    # Usage: /gen <normal|premium> <quantity> [points]
     if len(parts) < 3:
-        bot.reply_to(message, "Usage: /gen <normal|premium> <quantity>")
+        bot.reply_to(message, "Usage: /gen <normal|premium> <quantity> [points]")
         return
+
     key_type = parts[1].lower()
     try:
         qty = int(parts[2])
     except ValueError:
         bot.reply_to(message, "Quantity must be a number.")
         return
+
+    # Default points if not specified
+    default_points = 15 if key_type == "normal" else 90
+
+    # If there's a 4th argument, parse it as custom points
+    if len(parts) >= 4:
+        try:
+            default_points = int(parts[3])
+        except ValueError:
+            bot.reply_to(message, "Points must be a number.")
+            return
+
     generated = []
     if key_type == "normal":
         for _ in range(qty):
-            key = generate_normal_key()
-            add_key(key, "normal", 15)
+            key = generate_normal_key() 
+            add_key(key, "normal", default_points)
             generated.append(key)
     elif key_type == "premium":
         for _ in range(qty):
-            key = generate_premium_key()
-            add_key(key, "premium", 90)
+            key = generate_premium_key() 
+            add_key(key, "premium", default_points)
             generated.append(key)
     else:
         bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
         return
 
+    # Build response
     if generated:
         text = (
             "╔═══━━━─── • ───━━━═══╗\n"
@@ -156,7 +174,9 @@ def gen_command(message):
         text += "╰─━━━━━━━━━━━━─╯"
     else:
         text = "No keys generated."
+
     bot.reply_to(message, text, parse_mode="HTML")
+
 
 
 # ---------------- New Recovery Commands ----------------
