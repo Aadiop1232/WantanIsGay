@@ -1,12 +1,11 @@
-# handlers/rewards.py
 import telebot
 from telebot import types
 import random
 import config
-from db import get_user, update_user_points, get_account_claim_cost, get_platforms
-from handlers.logs import log_event
 import json
 import sqlite3
+from db import get_user, update_user_points, get_account_claim_cost, get_platforms
+from handlers.logs import log_event
 
 def send_rewards_menu(bot, message):
     platforms = get_platforms()
@@ -41,6 +40,8 @@ def handle_platform_selection(bot, call, platform_name):
     if not platform:
         bot.send_message(call.message.chat.id, "Platform not found.")
         return
+    # Convert the row to a dictionary
+    platform = dict(platform)
     stock = json.loads(platform["stock"] or "[]")
     price = platform["price"] or get_account_claim_cost()
     if stock:
@@ -60,24 +61,37 @@ def handle_platform_selection(bot, call, platform_name):
         bot.send_message(call.message.chat.id, text, parse_mode="HTML", reply_markup=markup)
 
 def send_premium_account_info(bot, chat_id, platform_name, account_info):
-    text = f"""🎉✨ 𝗣𝗥𝗘𝗠𝗜𝗨𝗠 𝗔𝗖𝗖𝗢𝗨𝗡𝗧 𝗨𝗡𝗟𝗢𝗖𝗞𝗘𝗗 
+    """
+    If the claimed account is a cookie account (i.e. account_info is a dict with key 'type' == 'cookie'),
+    create an in-memory text file (with header) and send it as a document.
+    Otherwise, send the account details as a text message.
+    """
+    import io
+    if isinstance(account_info, dict) and account_info.get("type") == "cookie":
+        cookie_content = account_info.get("content", "No details found")
+        header = ("━━━━━━━━━━━━━━━━━━━━━━\n"
+                  "🎁 Here Is Your Cookie For: " + platform_name + "\n"
+                  "━━━━━━━━━━━━━━━━━━━━━━\n\n")
+        full_text = header + cookie_content
+        file_stream = io.BytesIO(full_text.encode('utf-8'))
+        file_stream.name = f"{platform_name}_cookie.txt"
+        bot.send_document(chat_id, file_stream, caption="Your cookie file has been sent.")
+    else:
+        text = f"""🎉✨ PREMIUM ACCOUNT UNLOCKED 
 
-✨🎉📦 𝗦𝗲𝗿𝘃𝗶𝗰𝗲: {platform_name}
+✨🎉📦 Service: {platform_name}
 
-🔑 𝗬𝗼𝘂𝗿 𝗔𝗰𝗰𝗼𝘂𝗻𝘁: 
+🔑 Your Account: 
 <code>{account_info}</code> 📌 
 
-𝗛𝗼𝘄 𝘁𝗼 𝗹𝗼𝗴𝗶𝗻:
+How to login:
 1️⃣ Copy the details
 2️⃣ Open app/website
 3️⃣ Paste & login
 
-❌ 𝗔𝗰𝗰𝗼𝘂𝗻𝘁 𝗻𝗼𝘁 𝘄𝗼𝗿𝗸𝗶𝗻𝗴? 𝗥𝗲𝗽𝗼𝗿𝘁 𝗯𝗲𝗹𝗼𝘄 𝘁𝗼 𝗴𝗲𝘁 𝗮 𝗿𝗲𝗳𝘂𝗻𝗱 𝗼𝗳 𝘆𝗼𝘂𝗿 𝗽𝗼𝗶𝗻𝘁𝘀!
+❌ Account not working? Report below to get a refund of your points!
 By @shadowsquad0"""
-    # Create an inline keyboard with a Report button.
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Report", callback_data="menu_report"))
-    bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=markup)
+        bot.send_message(chat_id, text, parse_mode="HTML")
 
 def claim_account(bot, call, platform_name):
     user_id = str(call.from_user.id)
@@ -95,6 +109,8 @@ def claim_account(bot, call, platform_name):
     if not platform:
         bot.send_message(call.message.chat.id, "Platform not found.")
         return
+    # Convert platform row to dictionary
+    platform = dict(platform)
     stock = json.loads(platform["stock"] or "[]")
     price = platform["price"] or get_account_claim_cost()
     try:
@@ -115,7 +131,4 @@ def claim_account(bot, call, platform_name):
     new_points = current_points - price
     update_user_points(user_id, new_points)
     log_event(bot, "account_claim", f"User {user_id} claimed an account from {platform_name}. New balance: {new_points} pts.")
-    
-    # Send the formatted premium account info with a report button
     send_premium_account_info(bot, call.message.chat.id, platform_name, account)
-    
