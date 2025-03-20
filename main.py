@@ -108,6 +108,7 @@ def tutorial_command(message):
     )
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
+
 @bot.message_handler(commands=["gen"])
 def gen_command(message):
     if check_if_banned(message):
@@ -128,35 +129,34 @@ def gen_command(message):
     generated = []
     if key_type == "normal":
         for _ in range(qty):
-            key = generate_normal_key() 
+            key = generate_normal_key()
             add_key(key, "normal", 15)
             generated.append(key)
     elif key_type == "premium":
         for _ in range(qty):
-            key = generate_premium_key() 
+            key = generate_premium_key()
             add_key(key, "premium", 90)
             generated.append(key)
     else:
-    bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
-    return
+        bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
+        return
 
-if generated:
-    text = (
-        "╔═══━━━─── • ───━━━═══╗\n"
-        "     🎁 𝗦𝗛𝗔𝗗𝗢𝗪 𝗩𝟭 🎁\n"
-        "     ✨ Redeem Keys ✨\n"
-        "╚═══━━━─── • ───━━━═══╝\n\n"
-    )
-    # List each generated key in mono formatting
-    for key in generated:
-        text += f"⟡ <code>{key}</code>\n"
-    text += "\n╭─━━━━━━━━━━━━─╮\n"
-    text += "🤖 Redeem your code:   ➥ /redeem KEY\n"
-    text += "╰─━━━━━━━━━━━━─╯"
-else:
-    text = "No keys generated."
-
-bot.reply_to(message, text, parse_mode="HTML")
+    if generated:
+        text = (
+            "╔═══━━━─── • ───━━━═══╗\n"
+            "     🎁 𝗦𝗛𝗔𝗗𝗢𝗪 𝗩𝟭 🎁\n"
+            "     ✨ Redeem Keys ✨\n"
+            "╚═══━━━─── • ───━━━═══╝\n\n"
+        )
+        for key in generated:
+            text += f"⟡ <code>{key}</code>\n"
+        text += "\n╭─━━━━━━━━━━━━─╮\n"
+        text += "🤖 Redeem your code:\n"
+        text += "➥ /redeem KEY\n"
+        text += "╰─━━━━━━━━━━━━─╯"
+    else:
+        text = "No keys generated."
+    bot.reply_to(message, text, parse_mode="HTML")
 
 
 # ---------------- New Recovery Commands ----------------
