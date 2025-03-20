@@ -9,9 +9,11 @@ from handlers.referral import extract_referral_code, process_verified_referral, 
 from handlers.rewards import send_rewards_menu, handle_platform_selection, claim_account
 from handlers.review import prompt_review, process_report
 from handlers.account_info import send_account_info
-from handlers.admin import (send_admin_menu, admin_callback_handler, is_admin, lend_points, 
-                            update_account_claim_cost, update_referral_bonus, 
-                            generate_normal_key, generate_premium_key, add_key)
+from handlers.admin import (
+    send_admin_menu, admin_callback_handler, is_admin, lend_points, 
+    update_account_claim_cost, update_referral_bonus, 
+    generate_normal_key, generate_premium_key, add_key
+)
 from handlers.logs import log_event
 
 bot = telebot.TeleBot(config.TOKEN, parse_mode="HTML")
@@ -108,9 +110,6 @@ def tutorial_command(message):
     )
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
-
-@bot.message_handler(commands=["gen"])
-
 @bot.message_handler(commands=["gen"])
 def gen_command(message):
     if check_if_banned(message):
@@ -178,7 +177,6 @@ def gen_command(message):
     bot.reply_to(message, text, parse_mode="HTML")
 
 
-
 # ---------------- New Recovery Commands ----------------
 
 @bot.message_handler(commands=["recover"])
@@ -237,8 +235,9 @@ def callback_menu(call):
     if call.data == "menu_rewards":
         send_rewards_menu(bot, call.message)
     elif call.data == "menu_info":
-    from handlers.account_info import send_account_info
-    send_account_info(bot, call)  # pass the entire CallbackQuery
+        # FIX HERE: pass 'call' instead of 'call.message'
+        from handlers.account_info import send_account_info
+        send_account_info(bot, call)  
     elif call.data == "menu_referral":
         from handlers.referral import send_referral_menu
         send_referral_menu(bot, call.message)
