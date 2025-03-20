@@ -1,34 +1,35 @@
-from datetime import datetime
-from db import get_user, add_user
+# account_info.py
 
-def send_account_info(bot, update):
-    # If this is a CallbackQuery:
-    if isinstance(update, telebot.types.CallbackQuery):
-        chat_id = update.message.chat.id
-        user_id = update.from_user.id
-    # If this is a normal Message:
-    elif isinstance(update, telebot.types.Message):
-        chat_id = update.chat.id
-        user_id = update.from_user.id
-    else:
-        # Fallback if something else
-        return  # or handle differently
+from db import get_user
+from handlers.admin import is_admin
 
-    user = get_user(str(user_id))
+def send_account_info(bot, call):
+    """
+    Sends the user's account info in your fancy ASCII style.
+    """
+    user_id = str(call.from_user.id)
+    user = get_user(user_id)
     if not user:
-        # Create the user if not found
-        add_user(str(user_id), update.from_user.username or update.from_user.first_name,
-                 datetime.now().strftime("%Y-%m-%d"))
-        user = get_user(str(user_id))
+        bot.send_message(call.message.chat.id, "User not found. Please /start the bot first.")
+        return
+
+    username = user.get("username", "N/A")
+    join_date = user.get("join_date", "N/A")
+    balance = user.get("points", 0)
+    referrals = user.get("referrals", 0)
 
     text = (
         "╭━━━✦❘༻👤 ACCOUNT INFO ༺❘✦━━━╮\n"
-        f"┃ ✧ Username: {user.get('username')}\n"
-        f"┃ ✧ User ID: {user.get('telegram_id')}\n"
-        f"┃ ✧ Join Date: {user.get('join_date')}\n"
-        f"┃ ✧ Balance: {user.get('points')} pts\n"
-        f"┃ ✧ Total Referrals: {user.get('referrals')}\n"
+        "┃\n"
+        f"┃ ✧ Username: {username}\n"
+        f"┃ ✧ User ID: {user_id}\n"
+        f"┃ ✧ Join Date: {join_date}\n"
+        f"┃ ✧ Balance: {balance}\n"
+        f"┃ ✧ Total Referrals: {referrals}\n"
+        "┃\n"
         "╰━━━━━━━✦✧✦━━━━━━━╯"
     )
 
-    bot.send_message(chat_id, text, parse_mode="HTML")
+    # If this came from a callback, we can either edit or send a new message
+    # For simplicity, let's just send a new message
+    bot.send_message(call.message.chat.id, text, parse_mode="HTML")
