@@ -14,6 +14,7 @@ def get_connection():
 def init_db():
     conn = get_connection()
     c = conn.cursor()
+    # Create users table
     c.execute('''
     CREATE TABLE IF NOT EXISTS users (
         telegram_id TEXT PRIMARY KEY,
@@ -26,6 +27,7 @@ def init_db():
         verified INTEGER DEFAULT 0
     )
     ''')
+    # Create referrals table
     c.execute('''
         CREATE TABLE IF NOT EXISTS referrals (
             user_id TEXT,
@@ -33,6 +35,7 @@ def init_db():
             PRIMARY KEY (user_id, referred_id)
         )
     ''')
+    # Create platforms table with the new column in the schema.
     c.execute(f'''
         CREATE TABLE IF NOT EXISTS platforms (
             platform_name TEXT PRIMARY KEY,
@@ -41,6 +44,7 @@ def init_db():
             platform_type TEXT DEFAULT 'account'
         )
     ''')
+    # Create other tables...
     c.execute('''
         CREATE TABLE IF NOT EXISTS reviews (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,6 +92,22 @@ def init_db():
         )
     ''')
     conn.commit()
+    c.close()
+    conn.close()
+    migrate_db()
+
+def migrate_db():
+    """
+    Check if the 'platforms' table has the 'platform_type' column.
+    If not, add it via an ALTER TABLE command.
+    """
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(platforms)")
+    columns = [col[1] for col in c.fetchall()]
+    if 'platform_type' not in columns:
+        c.execute("ALTER TABLE platforms ADD COLUMN platform_type TEXT DEFAULT 'account'")
+        conn.commit()
     c.close()
     conn.close()
 
