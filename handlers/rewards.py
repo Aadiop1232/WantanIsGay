@@ -21,12 +21,12 @@ def send_rewards_menu(bot, message):
         markup.add(types.InlineKeyboardButton(btn_text, callback_data=f"reward_{platform_name}"))
     markup.add(types.InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     try:
-        bot.edit_message_text("<b>🎯 Available Platforms 🎯</b>", 
+        bot.edit_message_text("<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>", 
                               chat_id=message.chat.id,
                               message_id=message.message_id, 
                               parse_mode="HTML", reply_markup=markup)
     except Exception:
-        bot.send_message(message.chat.id, "<b>🎯 Available Platforms 🎯</b>", 
+        bot.send_message(message.chat.id, "<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>", 
                          parse_mode="HTML", reply_markup=markup)
 
 def handle_platform_selection(bot, call, platform_name):
