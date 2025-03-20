@@ -2,33 +2,25 @@ from datetime import datetime
 from db import get_user, add_user
 
 def send_account_info(bot, update):
-    """
-    Sends the account info for the user who triggered this command or callback.
-    Retains the original logic: if it's a callback, we use update.from_user
-    and update.message.chat; otherwise, we use update.from_user and update.chat.
-    """
-    # Distinguish CallbackQuery vs. normal Message
-    if hasattr(update, "data"):
-        # It's a callback query
-        user_obj = update.from_user
+    # If this is a CallbackQuery:
+    if isinstance(update, telebot.types.CallbackQuery):
         chat_id = update.message.chat.id
-    else:
-        # It's a normal message
-        user_obj = update.from_user
+        user_id = update.from_user.id
+    # If this is a normal Message:
+    elif isinstance(update, telebot.types.Message):
         chat_id = update.chat.id
+        user_id = update.from_user.id
+    else:
+        # Fallback if something else
+        return  # or handle differently
 
-    telegram_id = str(user_obj.id)
-    user = get_user(telegram_id)
+    user = get_user(str(user_id))
     if not user:
-        # Create user if not found
-        add_user(
-            telegram_id,
-            user_obj.username or user_obj.first_name,
-            datetime.now().strftime("%Y-%m-%d")
-        )
-        user = get_user(telegram_id)
+        # Create the user if not found
+        add_user(str(user_id), update.from_user.username or update.from_user.first_name,
+                 datetime.now().strftime("%Y-%m-%d"))
+        user = get_user(str(user_id))
 
-    # Build the fancy UI box
     text = (
         "╭━━━✦❘༻👤 ACCOUNT INFO ༺❘✦━━━╮\n"
         f"┃ ✧ Username: {user.get('username')}\n"
