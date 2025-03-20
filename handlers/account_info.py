@@ -3,38 +3,32 @@ from db import get_user, add_user
 
 def send_account_info(bot, update):
     """
-    Sends account info for the user who triggered this command or callback.
-    Handles both normal messages and callback queries.
+    Sends the account info for the user who triggered this command or callback.
+    Retains the original logic: if it's a callback, we use update.from_user
+    and update.message.chat; otherwise, we use update.from_user and update.chat.
     """
-    # Distinguish between a normal Message and a CallbackQuery
-    if hasattr(update, "message") and update.message:
-        # It's a normal message
-        chat_id = update.message.chat.id
-        user_id = str(update.message.from_user.id)
-        username = update.message.from_user.username or update.message.from_user.first_name
-    elif hasattr(update, "data"):
+    # Distinguish CallbackQuery vs. normal Message
+    if hasattr(update, "data"):
         # It's a callback query
+        user_obj = update.from_user
         chat_id = update.message.chat.id
-        user_id = str(update.from_user.id)
-        username = update.from_user.username or update.from_user.first_name
     else:
-        # Fallback if neither
+        # It's a normal message
+        user_obj = update.from_user
         chat_id = update.chat.id
-        user_id = str(update.from_user.id)
-        username = update.from_user.username or update.from_user.first_name
 
-    # Fetch the user's record from the DB
-    user = get_user(user_id)
-    # If user not found, create one
+    telegram_id = str(user_obj.id)
+    user = get_user(telegram_id)
     if not user:
+        # Create user if not found
         add_user(
-            user_id,
-            username,
+            telegram_id,
+            user_obj.username or user_obj.first_name,
             datetime.now().strftime("%Y-%m-%d")
         )
-        user = get_user(user_id)
+        user = get_user(telegram_id)
 
-    # Build fancy text
+    # Build the fancy UI box
     text = (
         "╭━━━✦❘༻👤 ACCOUNT INFO ༺❘✦━━━╮\n"
         f"┃ ✧ Username: {user.get('username')}\n"
@@ -45,5 +39,4 @@ def send_account_info(bot, update):
         "╰━━━━━━━✦✧✦━━━━━━━╯"
     )
 
-    # Send the message
     bot.send_message(chat_id, text, parse_mode="HTML")
