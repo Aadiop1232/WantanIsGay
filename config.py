@@ -1,11 +1,8 @@
-TOKEN = "7760154469:AAFwBrol9EP2L78Wt0sTqXcoz3OiL4HPy8I"
+TOKEN = "https://t.me/ShadowSquadReward"
 BOT_USERNAME = "ShadowRewardsBot"  # without the '@' symbol
 
 REQUIRED_CHANNELS = [
-    "https://t.me/shadowsquad0",
-    "https://t.me/Originlabs",
-    "https://t.me/ShadowsquadHits",
-    "https://t.me/Binhub_Originlabs"
+    "https://t.me/ShadowSquadReward"
 ]
 
 
