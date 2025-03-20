@@ -23,12 +23,12 @@ def send_account_info(bot, update):
         user = get_user(telegram_id)
     
     text = (
-        "<b>👤 Account Info</b>\n"
-        f"• <b>Username:</b> {user.get('username')}\n"
-        f"• <b>User ID:</b> {user.get('telegram_id')}\n"
-        f"• <b>Join Date:</b> {user.get('join_date')}\n"
-        f"• <b>Balance:</b> {user.get('points')} points\n"
-        f"• <b>Total Referrals:</b> {user.get('referrals')}\n"
+        "╭━━━✦❘༻👤 ACCOUNT INFO ༺❘✦━━━╮\n"
+        f"┃ ✧ Username: {user.get('username')}\n"
+        f"┃ ✧ User ID: {user.get('telegram_id')}\n"
+        f"┃ ✧ Join Date: {user.get('join_date')}\n"
+        f"┃ ✧ Balance: {user.get('points')} pts\n"
+        f"┃ ✧ Total Referrals: {user.get('referrals')}\n"
+        "╰━━━━━━━✦✧✦━━━━━━━╯"
     )
     bot.send_message(chat_id, text, parse_mode="HTML")
-    
