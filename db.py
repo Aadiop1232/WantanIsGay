@@ -149,7 +149,8 @@ def add_user(telegram_id, username, join_date, pending_referrer=None):
     if not user:
         c.execute("""
             INSERT INTO users (telegram_id, username, join_date, pending_referrer)
-            VALUES (?, ?, ?, ?) """, (telegram_id, username, join_date, pending_referrer))
+            VALUES (?, ?, ?, ?)
+        """, (telegram_id, username, join_date, pending_referrer))
         conn.commit()
     c.close()
     conn.close()
@@ -330,8 +331,6 @@ def update_stock_for_platform(platform_name, stock):
     c.close()
     conn.close()
     log_event(telebot.TeleBot(config.TOKEN), "stock", f"Platform '{platform_name}' stock updated to {len(stock)} items.")
-
-# ----- New Helper Functions for Platform Management -----
 
 def rename_platform(old_name, new_name):
     conn = get_connection()
