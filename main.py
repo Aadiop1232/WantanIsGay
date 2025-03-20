@@ -236,9 +236,9 @@ def callback_admin(call):
 def callback_menu(call):
     if call.data == "menu_rewards":
         send_rewards_menu(bot, call.message)
-    elif call.data == "menu_info":
-        from handlers.account_info import send_account_info
-        send_account_info(bot, call.message)
+elif call.data == "menu_info":
+    from handlers.account_info import send_account_info
+    send_account_info(bot, call)  # pass the entire CallbackQuery
     elif call.data == "menu_referral":
         from handlers.referral import send_referral_menu
         send_referral_menu(bot, call.message)
