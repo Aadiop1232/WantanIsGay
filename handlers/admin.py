@@ -306,6 +306,7 @@ def handle_admin_stock_add(bot, call, platform_name):
     if not platform:
         bot.send_message(call.message.chat.id, "Platform not found.")
         return
+    platform = dict(platform)  # Convert sqlite3.Row to dictionary
     p_type = platform.get("platform_type", "account")
     if p_type == "account":
         msg = bot.send_message(call.message.chat.id, f"Please send the stock text for account platform '{platform_name}':")
@@ -313,6 +314,7 @@ def handle_admin_stock_add(bot, call, platform_name):
     elif p_type == "cookie":
         msg = bot.send_message(call.message.chat.id, f"Please send a TXT file or ZIP file for cookie platform '{platform_name}':")
         bot.register_next_step_handler(msg, lambda m: process_stock_upload_admin(bot, m, platform_name, p_type))
+
 
 def process_stock_upload_admin(bot, message, platform_name, platform_type, retries=3):
     if platform_type == "account":
