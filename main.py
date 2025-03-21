@@ -315,21 +315,14 @@ def callback_reward(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("claim_"))
 def callback_claim(call):
-    """
-    If claimed in a group => we do a threaded reply in group saying "Check DM!"
-    Then we do the actual claim logic, which ideally sends the account in private.
-    """
     from handlers.rewards import claim_account
-
-    # If it's a group, do a threaded reply
+    # Extract the platform name from callback data (e.g., "claim_PlatformName")
+    platform_name = call.data.split("claim_")[1]
+    
     if is_group_chat(call.message):
-        # Attempt the normal claim
         try:
-            # claim_account typically sends the account to call.message.chat.id
-            # If you want it to send the account in private, you need to adapt claim_account 
-            # to use call.from_user.id as the chat ID for DM logic.
-            claim_account(bot, call)
-
+            # Attempt to send the account info to the user's DM
+            claim_account(bot, call, platform_name)
             bot.send_message(
                 call.message.chat.id,
                 "Your account info has been sent to your DM!",
@@ -343,8 +336,9 @@ def callback_claim(call):
                 reply_to_message_id=call.message.message_id
             )
     else:
-        # Private logic
-        claim_account(bot, call)
+        # For private chats, directly claim the account
+        claim_account(bot, call, platform_name)
+
 
 # ---------------- Polling Loop ----------------
 
