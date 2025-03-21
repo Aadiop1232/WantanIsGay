@@ -318,14 +318,19 @@ def handle_admin_stock_add(bot, call, platform_name):
 
 def process_stock_upload_admin(bot, message, platform_name, platform_type, retries=3):
     """
-    Updated version that merges new stock with old stock (instead of overwriting)
-    and splits each line for cookie .txt files, so you don't store an entire file
-    as a single item.
+    For 'account' type:
+      - We parse each line in the file as one account (unchanged).
+    For 'cookie' type:
+      - We store each .txt file as a single item (no line splitting).
+      - If it's a ZIP, we only parse .txt files, each one is 1 item in stock.
+    Merges new items with existing stock.
     """
     import io
     import json
     from zipfile import ZipFile, BadZipFile
     from db import update_stock_for_platform, get_connection
+
+    # 1) Fetch existing stock from DB so we can merge instead of overwrite
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -334,16 +339,17 @@ def process_stock_upload_admin(bot, message, platform_name, platform_type, retri
     c.close()
     conn.close()
 
-    # Load existing stock from DB
     current_stock = json.loads(row["stock"]) if row and row["stock"] else []
 
-    # We'll collect newly parsed items in new_stock
+    # We'll store newly parsed items in new_stock
     new_stock = []
 
-    # 1) ACCOUNT platform => parse lines from either text or doc, then merge
+    # -----------------------------------------------------------
+    # ACCOUNT LOGIC
+    # -----------------------------------------------------------
     if platform_type == "account":
+        # If it's a document, read the file
         if message.content_type == "document":
-            # Download file
             for attempt in range(retries):
                 try:
                     file_info = bot.get_file(message.document.file_id)
@@ -362,93 +368,76 @@ def process_stock_upload_admin(bot, message, platform_name, platform_type, retri
                         bot.send_message(message.chat.id, f"Error downloading file: {e}")
                         return
         else:
-            # If no document, assume text
+            # Otherwise assume user typed lines in text
             data = message.text.strip()
 
-        # Each line is one account
         lines = [line.strip() for line in data.splitlines() if line.strip()]
-        # Merge with existing
-        current_stock.extend(lines)
+        current_stock.extend(lines)  # Merge new lines with existing
         update_stock_for_platform(platform_name, current_stock)
 
-        bot.send_message(message.chat.id,
-                         f"Stock for '{platform_name}' updated. "
-                         f"{len(lines)} new items added. Total: {len(current_stock)}")
+        bot.send_message(
+            message.chat.id,
+            f"Stock for '{platform_name}' updated. "
+            f"{len(lines)} new items added. Total stock: {len(current_stock)}"
+        )
         send_admin_menu(bot, message)
         return
 
-    # 2) COOKIE platform => parse each line from .txt files
-elif platform_type == "cookie":
-    if message.content_type != "document":
-        bot.send_message(message.chat.id, "Please send a TXT or ZIP file.")
-        return
-
-    file_info = bot.get_file(message.document.file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
-    filename = message.document.file_name.lower()
-
-    new_stock = []
-
-    if filename.endswith(".txt"):
-        # Single .txt file => each line is a cookie
-        try:
-            content = downloaded_file.decode('utf-8')
-        except UnicodeDecodeError:
-            content = downloaded_file.decode('latin-1', errors='replace')
-        lines = [line.strip() for line in content.splitlines() if line.strip()]
-        for line in lines:
-            new_stock.append({"type": "cookie", "content": line})
-
-    elif filename.endswith(".zip"):
-        import io
-        from zipfile import ZipFile, BadZipFile
-        try:
-            zip_file = ZipFile(io.BytesIO(downloaded_file))
-            # Only process files ending in .txt
-            for f_name in zip_file.namelist():
-                if f_name.lower().endswith(".txt"):
-                    with zip_file.open(f_name) as f:
-                        try:
-                            content = f.read().decode('utf-8')
-                        except UnicodeDecodeError:
-                            content = f.read().decode('latin-1', errors='replace')
-                        lines = [line.strip() for line in content.splitlines() if line.strip()]
-                        for line in lines:
-                            new_stock.append({"type": "cookie", "content": line})
-                else:
-                    # Ignore non-.txt files
-                    pass
-        except BadZipFile as e:
-            bot.send_message(message.chat.id, f"Invalid ZIP file: {e}")
+    # -----------------------------------------------------------
+    # COOKIE LOGIC
+    # -----------------------------------------------------------
+    elif platform_type == "cookie":
+        # Must be a document (txt or zip)
+        if message.content_type != "document":
+            bot.send_message(message.chat.id, "Please send a TXT or ZIP file.")
             return
-    else:
-        bot.send_message(message.chat.id, "Unsupported file type. Please send a TXT or ZIP file.")
-        return
 
-    # Merge new_stock with existing stock
-    import json
-    from db import get_connection, update_stock_for_platform
-    conn = get_connection()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT stock FROM platforms WHERE platform_name = ?", (platform_name,))
-    row = c.fetchone()
-    c.close()
-    conn.close()
+        file_info = bot.get_file(message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        filename = message.document.file_name.lower()
 
-    current_stock = json.loads(row["stock"]) if row and row["stock"] else []
-    current_stock.extend(new_stock)
-    update_stock_for_platform(platform_name, current_stock)
+        # Single .txt => store entire file as one item
+        if filename.endswith(".txt"):
+            try:
+                content = downloaded_file.decode('utf-8')
+            except UnicodeDecodeError:
+                content = downloaded_file.decode('latin-1', errors='replace')
+            new_stock.append({"type": "cookie", "content": content})
 
-    bot.send_message(message.chat.id,
-                     f"Cookie stock updated. {len(new_stock)} new items added. Total: {len(current_stock)}")
-    send_admin_menu(bot, message)
-    return
+        # ZIP => for each .txt inside, store entire file as one item
+        elif filename.endswith(".zip"):
+            try:
+                zip_file = ZipFile(io.BytesIO(downloaded_file))
+                for f_name in zip_file.namelist():
+                    if f_name.lower().endswith(".txt"):
+                        with zip_file.open(f_name) as f:
+                            try:
+                                content = f.read().decode('utf-8')
+                            except UnicodeDecodeError:
+                                content = f.read().decode('latin-1', errors='replace')
+                            # Each .txt file => 1 item
+                            new_stock.append({"type": "cookie", "content": content})
+            except BadZipFile as e:
+                bot.send_message(message.chat.id, f"Invalid ZIP file: {e}")
+                return
+        else:
+            bot.send_message(message.chat.id, "Unsupported file type. Please send a TXT or ZIP file.")
+            return
 
+        # Merge new cookie items with existing stock
+        current_stock.extend(new_stock)
+        update_stock_for_platform(platform_name, current_stock)
+
+        bot.send_message(
+            message.chat.id,
+            f"Cookie stock updated. {len(new_stock)} new file(s) added. Total stock: {len(current_stock)}"
+        )
+        send_admin_menu(bot, message)
         return
 
     else:
         bot.send_message(message.chat.id, f"Unknown platform type: {platform_type}")
+    
         return
 
         send_admin_menu(bot, message)
