@@ -37,17 +37,6 @@ def start_command(message):
     if check_if_banned(message):
         return
 
-    # If in a group, show "Please DM me" with a threaded reply
-    if is_group_chat(message):
-        bot.send_message(
-            message.chat.id,
-            "Please DM me to get verified. I don't verify users in a group chat.",
-            reply_to_message_id=message.message_id  # threaded reply
-        )
-        return
-
-    # Private chat logic:
-    print(f"[DEBUG] /start received from user: {message.from_user.id}")
     user_id = str(message.from_user.id)
     user = get_user(user_id)
     pending_ref = extract_referral_code(message)
@@ -62,14 +51,24 @@ def start_command(message):
     if user.get("pending_referrer"):
         process_verified_referral(user_id, bot)
 
-    # If admin, auto-verify
-    if is_admin(user):
-        bot.send_message(message.chat.id, "✨ Welcome, Admin/Owner! You are automatically verified! ✨")
+    # First, check if the user is already verified or is an admin.
+    if is_admin(message.from_user) or check_channel_membership(bot, message.from_user.id):
         send_main_menu(bot, message)
         return
 
+    # If in a group chat and not verified, instruct them to DM for verification.
+    if is_group_chat(message):
+        bot.send_message(
+            message.chat.id,
+            "Please DM me to get verified. I don't verify users in a group chat.",
+            reply_to_message_id=message.message_id
+        )
+        return
+
+    # For unverified users in private chat, initiate the verification process.
     bot.send_message(message.chat.id, "⏳ Verifying your channel membership, please wait...")
     send_verification_message(bot, message)
+
 
 @bot.message_handler(commands=["lend"])
 def lend_command(message):
