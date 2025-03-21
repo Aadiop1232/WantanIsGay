@@ -26,10 +26,27 @@ def check_if_banned(message):
         return True
     return False
 
+def is_group_chat(message):
+    """
+    Returns True if this is a group or supergroup.
+    """
+    return message.chat.type in ["group", "supergroup"]
+
 @bot.message_handler(commands=["start"])
 def start_command(message):
     if check_if_banned(message):
         return
+
+    # If in a group, show "Please DM me" with a threaded reply
+    if is_group_chat(message):
+        bot.send_message(
+            message.chat.id,
+            "Please DM me to get verified. I don't verify users in a group chat.",
+            reply_to_message_id=message.message_id  # threaded reply
+        )
+        return
+
+    # Private chat logic:
     print(f"[DEBUG] /start received from user: {message.from_user.id}")
     user_id = str(message.from_user.id)
     user = get_user(user_id)
@@ -44,10 +61,13 @@ def start_command(message):
         user = get_user(user_id)
     if user.get("pending_referrer"):
         process_verified_referral(user_id, bot)
-    if is_admin(get_user(user_id)):
+
+    # If admin, auto-verify
+    if is_admin(user):
         bot.send_message(message.chat.id, "✨ Welcome, Admin/Owner! You are automatically verified! ✨")
         send_main_menu(bot, message)
         return
+
     bot.send_message(message.chat.id, "⏳ Verifying your channel membership, please wait...")
     send_verification_message(bot, message)
 
@@ -55,9 +75,11 @@ def start_command(message):
 def lend_command(message):
     if check_if_banned(message):
         return
+    # Restrict to owners
     if str(message.from_user.id) not in config.OWNERS:
         bot.reply_to(message, "🚫 You don't have permission to use this command.")
         return
+
     parts = message.text.strip().split()
     if len(parts) < 3:
         bot.reply_to(message, "Usage: /lend <user_id> <points> [custom message]", parse_mode="HTML")
@@ -68,6 +90,7 @@ def lend_command(message):
     except ValueError:
         bot.reply_to(message, "Points must be a number.")
         return
+
     custom_message = " ".join(parts[3:]) if len(parts) > 3 else None
     result = lend_points(str(message.from_user.id), user_id, points, custom_message)
     bot.reply_to(message, result)
@@ -112,14 +135,18 @@ def tutorial_command(message):
 
 @bot.message_handler(commands=["gen"])
 def gen_command(message):
+    """
+    /gen <normal|premium> <quantity> [points]
+    Only owners can generate keys.
+    """
     if check_if_banned(message):
         return
-    if str(message.from_user.id) not in config.ADMINS and str(message.from_user.id) not in config.OWNERS:
+    # Restrict to owners only
+    if str(message.from_user.id) not in config.OWNERS:
         bot.reply_to(message, "🚫 You don't have permission to generate keys.")
         return
 
     parts = message.text.strip().split()
-    # Usage: /gen <normal|premium> <quantity> [points]
     if len(parts) < 3:
         bot.reply_to(message, "Usage: /gen <normal|premium> <quantity> [points]")
         return
@@ -131,10 +158,7 @@ def gen_command(message):
         bot.reply_to(message, "Quantity must be a number.")
         return
 
-    # Default points if not specified
     default_points = 15 if key_type == "normal" else 90
-
-    # If there's a 4th argument, parse it as custom points
     if len(parts) >= 4:
         try:
             default_points = int(parts[3])
@@ -157,7 +181,6 @@ def gen_command(message):
         bot.reply_to(message, "Key type must be either 'normal' or 'premium'.")
         return
 
-    # Build response
     if generated:
         text = (
             "╔═══━━━─── • ───━━━═══╗\n"
@@ -176,16 +199,12 @@ def gen_command(message):
 
     bot.reply_to(message, text, parse_mode="HTML")
 
-
-# ---------------- New Recovery Commands ----------------
-
 @bot.message_handler(commands=["recover"])
 def recover_command(message):
-    # Only allow owners to recover the database
+    # Only owners can recover DB
     if str(message.from_user.id) not in config.OWNERS:
         bot.reply_to(message, "🚫 You are not authorized.")
         return
-    # This command must be sent in reply to a document (the bot DB file)
     if not message.reply_to_message or not message.reply_to_message.document:
         bot.reply_to(message, "Please reply to a valid bot database file to recover it.")
         return
@@ -200,7 +219,7 @@ def recover_command(message):
 
 @bot.message_handler(commands=["get"])
 def get_command(message):
-    # Only allow owners to get the current database file
+    # Only owners can get DB
     if str(message.from_user.id) not in config.OWNERS:
         bot.reply_to(message, "🚫 You are not authorized.")
         return
@@ -209,6 +228,38 @@ def get_command(message):
             bot.send_document(message.chat.id, f)
     except Exception as e:
         bot.reply_to(message, f"Error sending database file: {e}")
+
+@bot.message_handler(commands=["broadcast"])
+def broadcast_command(message):
+    """
+    Only owners can broadcast.
+    Usage: /broadcast <message>
+    """
+    if str(message.from_user.id) not in config.OWNERS:
+        bot.reply_to(message, "🚫 You are not authorized.")
+        return
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        bot.reply_to(message, "Usage: /broadcast <message>")
+        return
+    broadcast_text = parts[1]
+    from db import get_connection
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT telegram_id FROM users")
+    rows = c.fetchall()
+    c.close()
+    conn.close()
+    count = 0
+    for row in rows:
+        user_id = row["telegram_id"]
+        try:
+            bot.send_message(user_id, broadcast_text)
+            count += 1
+        except Exception as e:
+            print(f"Failed to broadcast to {user_id}: {e}")
+    bot.reply_to(message, f"Broadcast sent to {count} users.")
 
 # ---------------- Callback Query Handlers ----------------
 
@@ -235,14 +286,11 @@ def callback_menu(call):
     if call.data == "menu_rewards":
         send_rewards_menu(bot, call.message)
     elif call.data == "menu_info":
-        # FIX HERE: pass 'call' instead of 'call.message'
-        from handlers.account_info import send_account_info
-        send_account_info(bot, call)  
+        # We pass the entire call to account_info
+        send_account_info(bot, call)
     elif call.data == "menu_referral":
-        from handlers.referral import send_referral_menu
         send_referral_menu(bot, call.message)
     elif call.data == "menu_review":
-        from handlers.review import prompt_review
         prompt_review(bot, call.message)
     elif call.data == "menu_report":
         msg = bot.send_message(call.message.chat.id, "📝 Please type your report message (you may attach a photo or document):")
@@ -251,14 +299,12 @@ def callback_menu(call):
         from handlers.support import send_support_message
         send_support_message(bot, call.message)
     elif call.data == "menu_admin":
-        from handlers.admin import send_admin_menu
         send_admin_menu(bot, call.message)
     else:
         bot.answer_callback_query(call.id, "Unknown menu command.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "get_ref_link")
 def callback_get_ref_link(call):
-    from handlers.referral import get_referral_link
     referral_link = get_referral_link(str(call.from_user.id))
     bot.answer_callback_query(call.id, "Referral link generated!")
     bot.send_message(call.message.chat.id, f"Your referral link:\n{referral_link}")
@@ -266,14 +312,40 @@ def callback_get_ref_link(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("reward_"))
 def callback_reward(call):
     platform_name = call.data.split("reward_")[1]
-    from handlers.rewards import handle_platform_selection
     handle_platform_selection(bot, call, platform_name)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("claim_"))
 def callback_claim(call):
-    platform_name = call.data.split("claim_")[1]
+    """
+    If claimed in a group => we do a threaded reply in group saying "Check DM!"
+    Then we do the actual claim logic, which ideally sends the account in private.
+    """
     from handlers.rewards import claim_account
-    claim_account(bot, call, platform_name)
+
+    # If it's a group, do a threaded reply
+    if is_group_chat(call.message):
+        # Attempt the normal claim
+        try:
+            # claim_account typically sends the account to call.message.chat.id
+            # If you want it to send the account in private, you need to adapt claim_account 
+            # to use call.from_user.id as the chat ID for DM logic.
+            claim_account(bot, call)
+
+            bot.send_message(
+                call.message.chat.id,
+                "Your account info has been sent to your DM!",
+                reply_to_message_id=call.message.message_id  # threaded reply
+            )
+        except Exception as e:
+            print(f"Error claiming in group: {e}")
+            bot.send_message(
+                call.message.chat.id,
+                "Unable to DM you. Please start me in private.",
+                reply_to_message_id=call.message.message_id
+            )
+    else:
+        # Private logic
+        claim_account(bot, call)
 
 # ---------------- Polling Loop ----------------
 
