@@ -10,7 +10,11 @@ from handlers.logs import log_event
 def send_rewards_menu(bot, message):
     platforms = get_platforms()
     if not platforms:
-        bot.send_message(message.chat.id, "😢 No platforms available at the moment.")
+        bot.send_message(
+            message.chat.id,
+            "😢 No platforms available at the moment.",
+            reply_to_message_id=message.message_id
+        )
         return
     markup = types.InlineKeyboardMarkup(row_width=1)
     for platform in platforms:
@@ -21,13 +25,21 @@ def send_rewards_menu(bot, message):
         markup.add(types.InlineKeyboardButton(btn_text, callback_data=f"reward_{platform_name}"))
     markup.add(types.InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     try:
-        bot.edit_message_text("<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>", 
-                              chat_id=message.chat.id,
-                              message_id=message.message_id, 
-                              parse_mode="HTML", reply_markup=markup)
+        bot.edit_message_text(
+            "<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>",
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            parse_mode="HTML",
+            reply_markup=markup
+        )
     except Exception:
-        bot.send_message(message.chat.id, "<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>", 
-                         parse_mode="HTML", reply_markup=markup)
+        bot.send_message(
+            message.chat.id,
+            "<b>⚡ 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺𝘀 ⚡</b>",
+            parse_mode="HTML",
+            reply_markup=markup,
+            reply_to_message_id=message.message_id
+        )
 
 def handle_platform_selection(bot, call, platform_name):
     conn = __import__('db').get_connection()
@@ -38,9 +50,12 @@ def handle_platform_selection(bot, call, platform_name):
     c.close()
     conn.close()
     if not platform:
-        bot.send_message(call.message.chat.id, "Platform not found.")
+        bot.send_message(
+            call.message.chat.id,
+            "Platform not found.",
+            reply_to_message_id=call.message.message_id
+        )
         return
-    # Convert the row to a dictionary
     platform = dict(platform)
     stock = json.loads(platform["stock"] or "[]")
     price = platform["price"] or get_account_claim_cost()
@@ -53,12 +68,21 @@ def handle_platform_selection(bot, call, platform_name):
         markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🔙 Back", callback_data="menu_rewards"))
     try:
-        bot.edit_message_text(text, 
-                              chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, 
-                              parse_mode="HTML", reply_markup=markup)
+        bot.edit_message_text(
+            text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            parse_mode="HTML",
+            reply_markup=markup
+        )
     except Exception:
-        bot.send_message(call.message.chat.id, text, parse_mode="HTML", reply_markup=markup)
+        bot.send_message(
+            call.message.chat.id,
+            text,
+            parse_mode="HTML",
+            reply_markup=markup,
+            reply_to_message_id=call.message.message_id
+        )
 
 def send_premium_account_info(bot, chat_id, platform_name, account_info):
     """
@@ -69,9 +93,11 @@ def send_premium_account_info(bot, chat_id, platform_name, account_info):
     import io
     if isinstance(account_info, dict) and account_info.get("type") == "cookie":
         cookie_content = account_info.get("content", "No details found")
-        header = ("━━━━━━━━━━━━━━━━━━━━━━\n"
-                  "🎁 Here Is Your Cookie For: " + platform_name + "\n"
-                  "━━━━━━━━━━━━━━━━━━━━━━\n\n")
+        header = (
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎁 Here Is Your Cookie For: " + platform_name + "\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        )
         full_text = header + cookie_content
         file_stream = io.BytesIO(full_text.encode('utf-8'))
         file_stream.name = f"{platform_name}_cookie.txt"
@@ -97,7 +123,11 @@ def claim_account(bot, call, platform_name):
     user_id = str(call.from_user.id)
     user = get_user(user_id)
     if user is None:
-        bot.send_message(call.message.chat.id, "User not found. Please /start the bot first.")
+        bot.send_message(
+            call.message.chat.id,
+            "User not found. Please /start the bot first.",
+            reply_to_message_id=call.message.message_id
+        )
         return
     conn = __import__('db').get_connection()
     conn.row_factory = sqlite3.Row
@@ -107,28 +137,51 @@ def claim_account(bot, call, platform_name):
     c.close()
     conn.close()
     if not platform:
-        bot.send_message(call.message.chat.id, "Platform not found.")
+        bot.send_message(
+            call.message.chat.id,
+            "Platform not found.",
+            reply_to_message_id=call.message.message_id
+        )
         return
-    # Convert platform row to dictionary
     platform = dict(platform)
     stock = json.loads(platform["stock"] or "[]")
     price = platform["price"] or get_account_claim_cost()
     try:
         current_points = int(user.get("points", 0))
     except Exception as e:
-        bot.send_message(call.message.chat.id, f"Error reading your points: {e}")
+        bot.send_message(
+            call.message.chat.id,
+            f"Error reading your points: {e}",
+            reply_to_message_id=call.message.message_id
+        )
         return
     if current_points < price:
-        bot.send_message(call.message.chat.id, f"Insufficient points (each account costs {price} pts). Earn more via referrals or keys.")
+        bot.send_message(
+            call.message.chat.id,
+            f"Insufficient points (each account costs {price} pts). Earn more via referrals or keys.",
+            reply_to_message_id=call.message.message_id
+        )
         return
     if not stock:
-        bot.send_message(call.message.chat.id, "No accounts available.")
+        bot.send_message(
+            call.message.chat.id,
+            "No accounts available.",
+            reply_to_message_id=call.message.message_id
+        )
         return
     index = random.randint(0, len(stock) - 1)
     account = stock.pop(index)
-    from db import update_stock_for_platform
+    from db import update_stock_for_platform, update_user_points
     update_stock_for_platform(platform_name, stock)
     new_points = current_points - price
     update_user_points(user_id, new_points)
-    log_event(bot, "account_claim", f"User {user_id} claimed an account from {platform_name}. New balance: {new_points} pts.")
-    send_premium_account_info(bot, call.message.chat.id, platform_name, account)
+    log_event(
+        bot,
+        "account_claim",
+        f"User {user_id} claimed an account from {platform_name}. New balance: {new_points} pts."
+    )
+    # If claim is from a group chat, send the account info to the user's private chat.
+    target_chat_id = call.message.chat.id
+    if call.message.chat.type in ["group", "supergroup"]:
+        target_chat_id = call.from_user.id
+    send_premium_account_info(bot, target_chat_id, platform_name, account)
