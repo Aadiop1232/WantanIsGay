@@ -218,6 +218,27 @@ def get_platforms():
     conn.close()
     return [dict(p) for p in platforms]
 
+def get_platform_by_name(platform_name):
+    """Fetch a platform by name."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM platforms WHERE platform_name = ?", (platform_name,))
+    platform = c.fetchone()
+    c.close()
+    conn.close()
+    return dict(platform) if platform else None
+
+def update_stock_for_platform(platform_name, stock):
+    """Update the stock for a platform."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE platforms SET stock = ? WHERE platform_name = ?", (json.dumps(stock), platform_name))
+    conn.commit()
+    c.close()
+    conn.close()
+    log_event(telebot.TeleBot(config.TOKEN), "stock", f"Platform '{platform_name}' stock updated to {len(stock)} items.")
+
 def get_leaderboard(limit=10):
     """Fetch the points leaderboard."""
     conn = get_connection()
@@ -247,23 +268,37 @@ def get_referral_leaderboard(limit=10):
     conn.close()
     return [dict(row) for row in leaderboard]
 
-def update_stock_for_platform(platform_name, stock):
-    """Update the stock for a platform."""
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("UPDATE platforms SET stock = ? WHERE platform_name = ?", (json.dumps(stock), platform_name))
-    conn.commit()
-    c.close()
-    conn.close()
-    log_event(telebot.TeleBot(config.TOKEN), "stock", f"Platform '{platform_name}' stock updated to {len(stock)} items.")
-
-def get_platform_by_name(platform_name):
-    """Fetch a platform by name."""
+def claim_key_in_db(key_str, telegram_id):
+    """Claims a key and assigns it to the user."""
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM platforms WHERE platform_name = ?", (platform_name,))
-    platform = c.fetchone()
+    
+    # Fetch the key from the database
+    c.execute("SELECT * FROM keys WHERE \"key\" = ?", (key_str,))
+    key_doc = c.fetchone()
+    
+    if not key_doc:
+        c.close()
+        conn.close()
+        return "Key not found."
+    
+    if key_doc["claimed"]:
+        c.close()
+        conn.close()
+        return "Key already claimed."
+    
+    points_awarded = key_doc["points"]
+    
+    # Mark the key as claimed
+    c.execute("UPDATE keys SET claimed = 1, claimed_by = ?, timestamp = ? WHERE \"key\" = ?",
+              (telegram_id, datetime.now(), key_str))
+    conn.commit()
+
+    # Update the user's points
+    c.execute("UPDATE users SET points = points + ? WHERE telegram_id = ?", (points_awarded, telegram_id))
+    conn.commit()
+
     c.close()
     conn.close()
-    return dict(platform) if platform else None
+    return f"Key redeemed successfully. You've been awarded {points_awarded} points."
