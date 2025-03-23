@@ -185,3 +185,41 @@ def claim_account(bot, call, platform_name):
     if call.message.chat.type in ["group", "supergroup"]:
         target_chat_id = call.from_user.id
     send_premium_account_info(bot, target_chat_id, platform_name, account)
+    bot.send_message(
+        call.message.chat.id,
+        "✅ Your account details have been sent via DM! Check your messages.",
+        reply_to_message_id=call.message.message_id
+    )
+
+def get_leaderboard(limit=10):
+    """
+    Fetch the points leaderboard.
+    """
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT telegram_id, username, points FROM users ORDER BY points DESC LIMIT ?", (limit,))
+    leaderboard = c.fetchall()
+    c.close()
+    conn.close()
+    return [dict(row) for row in leaderboard]
+
+def get_referral_leaderboard(limit=10):
+    """
+    Fetch the referral leaderboard.
+    """
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""
+        SELECT u.telegram_id, u.username, COUNT(r.referred_id) AS referrals
+        FROM users u
+        LEFT JOIN referrals r ON u.telegram_id = r.user_id
+        GROUP BY u.telegram_id
+        ORDER BY referrals DESC
+        LIMIT ?
+    """, (limit,))
+    leaderboard = c.fetchall()
+    c.close()
+    conn.close()
+    return [dict(row) for row in leaderboard]
