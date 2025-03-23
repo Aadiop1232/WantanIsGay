@@ -1,6 +1,7 @@
 from telebot import types
 from db import get_user
 from handlers.admin import is_admin
+from bot_instance import bot  # Import bot from bot_instance
 
 def send_main_menu(bot, update):
     # Fetch user details
