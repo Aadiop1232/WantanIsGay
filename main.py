@@ -48,30 +48,32 @@ def start_command(message):
             pending_referrer=pending_ref
         )
         user = get_user(user_id)
-    if user.get("pending_referrer"):
-        process_verified_referral(user_id, bot)
 
-    # If user is verified (or an admin), show the main menu.
+    # Handle verification for group chats
+    if is_group_chat(message):
+        if user.get("verified"):
+            send_main_menu(bot, message)
+        else:
+            bot.send_message(
+                message.chat.id,
+                "Please DM me to get verified. I don't verify users in a group chat.",
+                reply_to_message_id=message.message_id
+            )
+        return
+
+    # Continue verification if user is verified
     if is_admin(message.from_user) or check_channel_membership(bot, message.from_user.id):
         send_main_menu(bot, message)
         return
 
-    # In a group chat, prompt the user to DM the bot for verification.
-    if is_group_chat(message):
-        bot.send_message(
-            message.chat.id,
-            "Please DM me to get verified. I don't verify users in a group chat.",
-            reply_to_message_id=message.message_id
-        )
-        return
-
-    # In private chat, begin the verification process.
+    # Start verification process in private
     bot.send_message(
         message.chat.id,
         "⏳ Verifying your channel membership, please wait...",
         reply_to_message_id=message.message_id
     )
     send_verification_message(bot, message)
+
 
 @bot.message_handler(commands=["lend"])
 def lend_command(message):
@@ -98,6 +100,7 @@ def lend_command(message):
     bot.reply_to(message, result, reply_to_message_id=message.message_id)
     log_event(bot, "lend", f"Owner {message.from_user.id} lent {points} pts to user {user_id}.", user=message.from_user)
 
+
 @bot.message_handler(commands=["redeem"])
 def redeem_command(message):
     if check_if_banned(message):
@@ -112,12 +115,14 @@ def redeem_command(message):
     bot.reply_to(message, result, reply_to_message_id=message.message_id)
     log_event(bot, "key_claim", f"User {user_id} redeemed key {key}. Result: {result}", user=message.from_user)
 
+
 @bot.message_handler(commands=["report"])
 def report_command(message):
     if check_if_banned(message):
         return
     msg = bot.send_message(message.chat.id, "📝 Please type your report message (you may attach a photo or document):", reply_to_message_id=message.message_id)
     bot.register_next_step_handler(msg, lambda m: process_report(bot, m))
+
 
 @bot.message_handler(commands=["tutorial"])
 def tutorial_command(message):
@@ -134,6 +139,7 @@ def tutorial_command(message):
         "Enjoy and good luck! 😊"
     )
     bot.send_message(message.chat.id, text, parse_mode="HTML", reply_to_message_id=message.message_id)
+
 
 @bot.message_handler(commands=["gen"])
 def gen_command(message):
@@ -196,6 +202,7 @@ def gen_command(message):
 
     bot.reply_to(message, text, parse_mode="HTML", reply_to_message_id=message.message_id)
 
+
 @bot.message_handler(commands=["recover"])
 def recover_command(message):
     if str(message.from_user.id) not in config.OWNERS:
@@ -213,6 +220,7 @@ def recover_command(message):
     except Exception as e:
         bot.reply_to(message, f"Error recovering database: {e}", reply_to_message_id=message.message_id)
 
+
 @bot.message_handler(commands=["get"])
 def get_command(message):
     if str(message.from_user.id) not in config.OWNERS:
@@ -223,6 +231,7 @@ def get_command(message):
             bot.send_document(message.chat.id, f, reply_to_message_id=message.message_id)
     except Exception as e:
         bot.reply_to(message, f"Error sending database file: {e}", reply_to_message_id=message.message_id)
+
 
 @bot.message_handler(commands=["broadcast"])
 def broadcast_command(message):
@@ -252,18 +261,17 @@ def broadcast_command(message):
             print(f"Failed to broadcast to {user_id}: {e}")
     bot.reply_to(message, f"Broadcast sent to {count} users.", reply_to_message_id=message.message_id)
 
+
 @bot.callback_query_handler(func=lambda call: call.data == "back_main")
 def callback_back_main(call):
     try:
         bot.delete_message(call.message.chat.id, call.message.message_id)
     except Exception as e:
         print("Error deleting message:", e)
-    from handlers.main_menu import send_main_menu
     send_main_menu(bot, call.message)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("verify"))
 def callback_verify(call):
-    from handlers.verification import handle_verification_callback
     handle_verification_callback(bot, call)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin"))
@@ -301,29 +309,6 @@ def callback_get_ref_link(call):
         reply_to_message_id=call.message.message_id
     )
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("reward_"))
-def callback_reward(call):
-    platform_name = call.data.split("reward_")[1]
-    handle_platform_selection(bot, call, platform_name)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("claim_"))
-def callback_claim(call):
-    from handlers.rewards import claim_account
-    platform_name = call.data.split("claim_")[1]
-    try:
-        claim_account(bot, call, platform_name)
-        bot.send_message(
-            call.message.chat.id,
-            "Your account info has been sent to your DM!",
-            reply_to_message_id=call.message.message_id
-        )
-    except Exception as e:
-        print(f"Error claiming in group: {e}")
-        bot.send_message(
-            call.message.chat.id,
-            "Unable to DM you. Please start me in private.",
-            reply_to_message_id=call.message.message_id
-        )
 
 while True:
     try:
