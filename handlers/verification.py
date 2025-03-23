@@ -1,4 +1,3 @@
-# handlers/verification.py
 import telebot
 from telebot import types
 import config
@@ -32,13 +31,14 @@ def send_verification_message(bot, message):
     """
     Sends a verification message to the user.
     Admins bypass verification.
-    If the user is verified (i.e. a member of all required channels), the main menu is shown.
+    If the user is verified (i.e., a member of all required channels), the main menu is shown.
     Otherwise, the user is prompted to join the required channels.
     """
     if is_admin(message.from_user):
         bot.send_message(message.chat.id, "✨ Welcome, Admin/Owner! You are automatically verified! ✨")
         send_main_menu(bot, message)
         return
+
     if check_channel_membership(bot, message.from_user.id):
         bot.send_message(message.chat.id, "✅ You are verified! 🎉")
         send_main_menu(bot, message)
