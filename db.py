@@ -169,6 +169,24 @@ def update_user_verified(telegram_id):
     c.close()
     conn.close()
 
+def ban_user(telegram_id):
+    """Ban a user."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET banned = 1 WHERE telegram_id = ?", (telegram_id,))
+    conn.commit()
+    c.close()
+    conn.close()
+
+def unban_user(telegram_id):
+    """Unban a user."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET banned = 0 WHERE telegram_id = ?", (telegram_id,))
+    conn.commit()
+    c.close()
+    conn.close()
+
 def get_report_by_id(report_id):
     """Fetch a report by its ID."""
     conn = get_connection()
